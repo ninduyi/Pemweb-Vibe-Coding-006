@@ -16,13 +16,22 @@ const LaundryItemSchema = new mongoose.Schema(
     },
     packageType: {
       type: String,
-      enum: ["kiloan", "satuan", "express", "lainnya"],
+      enum: ["kiloan", "satuan", "express", "dry-cleaning", "cuci-lipat", "cuci-setrika"],
       default: "kiloan",
     },
     quantity: {
       type: Number,
       required: true,
       min: 1,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    totalPrice: {
+      type: Number,
+      default: 0,
     },
     notes: {
       type: String,

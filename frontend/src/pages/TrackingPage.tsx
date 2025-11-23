@@ -10,6 +10,8 @@ interface LaundryData {
   image: string;
   packageType: string;
   quantity: number;
+  price: number;
+  totalPrice: number;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -28,6 +30,7 @@ export default function TrackingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [imageError, setImageError] = useState(false);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -54,6 +57,7 @@ export default function TrackingPage() {
     try {
       const response = await laundryAPI.trackByCode(code);
       setLaundry(response.data.data);
+      setImageError(false); // Reset image error for new search
       saveRecentSearch(code);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Laundry not found');
@@ -130,6 +134,76 @@ export default function TrackingPage() {
           </div>
         )}
 
+        {/* Pricelist Section */}
+        {!laundry && (
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
+            <h3 className="text-white font-bold text-xl mb-4 flex items-center">
+              <svg className="w-6 h-6 mr-3 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+              Pricelist Laundry
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-white">Kiloan</span>
+                  <span className="text-gold font-bold">Rp 8.000/kg</span>
+                </div>
+                <p className="text-gray-300 text-sm">Cuci kering lipat standar (min. 3kg)</p>
+              </div>
+              
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-white">Satuan</span>
+                  <span className="text-gold font-bold">Rp 12.000/kg</span>
+                </div>
+                <p className="text-gray-300 text-sm">Per kg pakaian satuan</p>
+              </div>
+              
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-white">Express</span>
+                  <span className="text-gold font-bold">Rp 15.000/kg</span>
+                </div>
+                <p className="text-gray-300 text-sm">Selesai dalam 6 jam</p>
+              </div>
+              
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-white">Dry Cleaning</span>
+                  <span className="text-gold font-bold">Rp 25.000/kg</span>
+                </div>
+                <p className="text-gray-300 text-sm">Untuk pakaian khusus</p>
+              </div>
+              
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-white">Cuci Lipat</span>
+                  <span className="text-gold font-bold">Rp 10.000/kg</span>
+                </div>
+                <p className="text-gray-300 text-sm">Cuci dan lipat rapi</p>
+              </div>
+              
+              <div className="bg-white/20 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-white">Cuci Setrika</span>
+                  <span className="text-gold font-bold">Rp 12.000/kg</span>
+                </div>
+                <p className="text-gray-300 text-sm">Cuci + setrika premium</p>
+              </div>
+            </div>
+            
+            <div className="mt-4 p-4 bg-gold/20 rounded-lg">
+              <h4 className="text-gold font-semibold mb-2">🎯 Special Offers:</h4>
+               <ul className="text-white text-sm space-y-1">
+                 <li>• Minimum order 3kg untuk kiloan</li>
+                 <li>• Gratis pickup & delivery untuk order di atas Rp 50.000</li>
+                 <li>• Member discount 10% untuk customer tetap</li>
+               </ul>
+            </div>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="bg-red-500 text-white px-4 py-3 rounded-lg mb-6">
@@ -154,12 +228,13 @@ export default function TrackingPage() {
               </span>
             </div>
 
-            {laundry.image ? (
+            {laundry.image && !imageError ? (
               <div className="mb-6">
                 <img
                   src={`http://localhost:5000${laundry.image}`}
                   alt="Laundry"
                   className="w-full h-64 object-cover rounded-lg shadow-lg"
+                  onError={() => setImageError(true)}
                 />
               </div>
             ) : (
@@ -168,10 +243,13 @@ export default function TrackingPage() {
                 <div className="absolute top-8 right-8 w-20 h-20 bg-gold/10 rounded-full blur-2xl"></div>
                 <div className="absolute bottom-8 left-8 w-24 h-24 bg-gold/10 rounded-full blur-2xl"></div>
                 
-                {/* T-shirt icon */}
-                <svg className="w-40 h-40 text-gold/30" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16,4L9,4L9,2C9,1.45 8.55,1 8,1L6,1C5.45,1 5,1.45 5,2L5,4L4,4C2.9,4 2,4.9 2,6L2,8C2,9.1 2.9,10 4,10L4,20C4,21.1 4.9,22 6,22L18,22C19.1,22 20,21.1 20,20L20,10C21.1,10 22,9.1 22,8L22,6C22,4.9 21.1,4 20,4L19,4L19,2C19,1.45 18.55,1 18,1L16,1C15.45,1 15,1.45 15,2L15,4M7,4L7,3L8,3L8,4M16,3L17,3L17,4L16,4M18,20L6,20L6,10.97L7.17,10.39L9.5,11.4C11.28,12.14 13.72,12.14 15.5,11.4L17.83,10.39L19,10.97L19,20Z"/>
-                </svg>
+                {/* T-shirt icon with text */}
+                <div className="text-center">
+                  <svg className="w-24 h-24 mx-auto text-gold mb-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M16,4L9,4L9,2C9,1.45 8.55,1 8,1L6,1C5.45,1 5,1.45 5,2L5,4L4,4C2.9,4 2,4.9 2,6L2,8C2,9.1 2.9,10 4,10L4,20C4,21.1 4.9,22 6,22L18,22C19.1,22 20,21.1 20,20L20,10C21.1,10 22,9.1 22,8L22,6C22,4.9 21.1,4 20,4L19,4L19,2C19,1.45 18.55,1 18,1L16,1C15.45,1 15,1.45 15,2L15,4M7,4L7,3L8,3L8,4M16,3L17,3L17,4L16,4M18,20L6,20L6,10.97L7.17,10.39L9.5,11.4C11.28,12.14 13.72,12.14 15.5,11.4L17.83,10.39L19,10.97L19,20Z"/>
+                  </svg>
+                  <p className="text-gold font-semibold text-lg">Image Not Available</p>
+                </div>
               </div>
             )}
 
@@ -183,6 +261,14 @@ export default function TrackingPage() {
               <div>
                 <p className="text-sm text-gray-600">Quantity</p>
                 <p className="font-semibold text-navy">{laundry.quantity} kg</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Price per Kg</p>
+                <p className="font-semibold text-navy">Rp {(laundry.price || 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Price</p>
+                <p className="font-bold text-gold text-lg">Rp {(laundry.totalPrice || 0).toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Created At</p>

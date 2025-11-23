@@ -8,6 +8,8 @@ interface LaundryItem {
   tenantName: string;
   packageType: string;
   quantity: number;
+  price: number;
+  totalPrice: number;
   status: string;
   notes: string;
   image: string;
@@ -18,11 +20,22 @@ interface LaundryFormModalProps {
   onClose: () => void;
 }
 
+// Price list based on package type
+const PRICE_LIST = {
+  'kiloan': 8000,
+  'satuan': 12000,
+  'express': 15000,
+  'dry-cleaning': 25000,
+  'cuci-lipat': 10000,
+  'cuci-setrika': 12000,
+};
+
 export default function LaundryFormModal({ laundry, onClose }: LaundryFormModalProps) {
   const [formData, setFormData] = useState({
     tenantName: '',
     packageType: 'kiloan',
     quantity: '',
+    price: '',
     notes: '',
     status: 'pending',
   });
@@ -37,6 +50,7 @@ export default function LaundryFormModal({ laundry, onClose }: LaundryFormModalP
         tenantName: laundry.tenantName,
         packageType: laundry.packageType,
         quantity: laundry.quantity.toString(),
+        price: (laundry.price || 0).toString(),
         notes: laundry.notes || '',
         status: laundry.status,
       });
@@ -45,6 +59,16 @@ export default function LaundryFormModal({ laundry, onClose }: LaundryFormModalP
       }
     }
   }, [laundry]);
+
+  // Auto-update price when package type changes
+  const handlePackageTypeChange = (packageType: string) => {
+    const newPrice = PRICE_LIST[packageType as keyof typeof PRICE_LIST] || 0;
+    setFormData({ 
+      ...formData, 
+      packageType, 
+      price: newPrice.toString() 
+    });
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -64,10 +88,46 @@ export default function LaundryFormModal({ laundry, onClose }: LaundryFormModalP
     setLoading(true);
 
     try {
+      // Basic validation
+      if (!formData.tenantName || !formData.quantity || !formData.price) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
+      const quantity = Number(formData.quantity);
+      if (quantity <= 0) {
+        setError('Quantity must be greater than 0');
+        setLoading(false);
+        return;
+      }
+
+      // Check minimum 3kg for kiloan package
+      if (formData.packageType === 'kiloan' && quantity < 3) {
+        setError('Minimum 3kg untuk paket kiloan');
+        setLoading(false);
+        return;
+      }
+
+      if (Number(formData.price) < 0) {
+        setError('Price must be 0 or greater');
+        setLoading(false);
+        return;
+      }
+
+      // Debug logging
+      console.log('Frontend - Form data before submit:', {
+        quantity: formData.quantity,
+        price: formData.price,
+        quantityType: typeof formData.quantity,
+        priceType: typeof formData.price
+      });
+
       const data = new FormData();
       data.append('tenantName', formData.tenantName);
       data.append('packageType', formData.packageType);
       data.append('quantity', formData.quantity);
+      data.append('price', formData.price);
       data.append('notes', formData.notes);
       data.append('status', formData.status);
 
@@ -125,12 +185,15 @@ export default function LaundryFormModal({ laundry, onClose }: LaundryFormModalP
             </label>
             <select
               value={formData.packageType}
-              onChange={(e) => setFormData({ ...formData, packageType: e.target.value })}
+              onChange={(e) => handlePackageTypeChange(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gold focus:border-transparent outline-none"
             >
               <option value="kiloan">Kiloan</option>
               <option value="satuan">Satuan</option>
               <option value="express">Express</option>
+              <option value="dry-cleaning">Dry Cleaning</option>
+              <option value="cuci-lipat">Cuci Lipat</option>
+              <option value="cuci-setrika">Cuci Setrika</option>
             </select>
           </div>
 
@@ -138,16 +201,45 @@ export default function LaundryFormModal({ laundry, onClose }: LaundryFormModalP
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Quantity (kg) <span className="text-red-500">*</span>
+              {formData.packageType === 'kiloan' && (
+                <span className="text-xs text-blue-600 ml-2">(min. 3kg)</span>
+              )}
             </label>
             <input
-              type="number"
+              type="text"
               required
-              min="1"
               value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              onChange={(e) => {
+                // Only allow numbers for quantity
+                const value = e.target.value.replace(/[^0-9]/g, '');
+                setFormData({ ...formData, quantity: value });
+              }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gold focus:border-transparent outline-none"
               placeholder="Enter quantity"
             />
+          </div>
+
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Price per Kg (Rp) <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                value={formData.price}
+                readOnly
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
+                placeholder="Auto-filled based on package type"
+              />
+              <div className="absolute right-3 top-3 text-sm text-gray-500">
+                Auto
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Harga otomatis berdasarkan jenis paket
+            </p>
           </div>
 
           {/* Status (only for edit) */}

@@ -10,6 +10,8 @@ interface LaundryItem {
   tenantName: string;
   packageType: string;
   quantity: number;
+  price: number;
+  totalPrice: number;
   status: string;
   notes: string;
   image: string;
@@ -36,6 +38,7 @@ export default function AdminDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [selectedLaundry, setSelectedLaundry] = useState<LaundryItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -250,11 +253,14 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {laundries.map((laundry) => (
             <div key={laundry._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
-              {laundry.image ? (
+              {laundry.image && !imageErrors.has(laundry._id) ? (
                 <img
                   src={`http://localhost:5000${laundry.image}`}
                   alt={laundry.tenantName}
                   className="w-full h-48 object-cover"
+                  onError={() => {
+                    setImageErrors(prev => new Set([...prev, laundry._id]));
+                  }}
                 />
               ) : (
                 <div className="w-full h-48 bg-gradient-to-br from-navy via-navy-soft to-navy/80 flex items-center justify-center relative overflow-hidden">
@@ -262,10 +268,13 @@ export default function AdminDashboard() {
                   <div className="absolute top-4 right-4 w-16 h-16 bg-gold/10 rounded-full blur-xl"></div>
                   <div className="absolute bottom-4 left-4 w-20 h-20 bg-gold/10 rounded-full blur-xl"></div>
                   
-                  {/* T-shirt icon */}
-                  <svg className="w-32 h-32 text-gold/30" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M16,4L9,4L9,2C9,1.45 8.55,1 8,1L6,1C5.45,1 5,1.45 5,2L5,4L4,4C2.9,4 2,4.9 2,6L2,8C2,9.1 2.9,10 4,10L4,20C4,21.1 4.9,22 6,22L18,22C19.1,22 20,21.1 20,20L20,10C21.1,10 22,9.1 22,8L22,6C22,4.9 21.1,4 20,4L19,4L19,2C19,1.45 18.55,1 18,1L16,1C15.45,1 15,1.45 15,2L15,4M7,4L7,3L8,3L8,4M16,3L17,3L17,4L16,4M18,20L6,20L6,10.97L7.17,10.39L9.5,11.4C11.28,12.14 13.72,12.14 15.5,11.4L17.83,10.39L19,10.97L19,20Z"/>
-                  </svg>
+                  {/* T-shirt icon with text */}
+                  <div className="text-center">
+                    <svg className="w-16 h-16 mx-auto text-gold mb-2" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16,4L9,4L9,2C9,1.45 8.55,1 8,1L6,1C5.45,1 5,1.45 5,2L5,4L4,4C2.9,4 2,4.9 2,6L2,8C2,9.1 2.9,10 4,10L4,20C4,21.1 4.9,22 6,22L18,22C19.1,22 20,21.1 20,20L20,10C21.1,10 22,9.1 22,8L22,6C22,4.9 21.1,4 20,4L19,4L19,2C19,1.45 18.55,1 18,1L16,1C15.45,1 15,1.45 15,2L15,4M7,4L7,3L8,3L8,4M16,3L17,3L17,4L16,4M18,20L6,20L6,10.97L7.17,10.39L9.5,11.4C11.28,12.14 13.72,12.14 15.5,11.4L17.83,10.39L19,10.97L19,20Z"/>
+                    </svg>
+                    <p className="text-gold font-medium text-sm">Image Not Available</p>
+                  </div>
                 </div>
               )}
 
@@ -296,6 +305,18 @@ export default function AdminDashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
                     </svg>
                     <span>Quantity: <strong>{laundry.quantity} kg</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                    <span>Price: <strong>Rp {(laundry.price || 0).toLocaleString()} / kg</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                    <span className="text-gold font-bold">Total: Rp {(laundry.totalPrice || 0).toLocaleString()}</span>
                   </div>
                 </div>
 

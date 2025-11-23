@@ -8,21 +8,38 @@ exports.createLaundry = async (req, res, next) => {
     console.log('req.body:', req.body);
     console.log('req.file:', req.file);
 
-    const { tenantName, packageType, quantity, notes, image } = req.body;
+    const { tenantName, packageType, quantity, notes, image, price } = req.body;
 
-    if (!tenantName || !quantity) {
+    if (!tenantName || !quantity || !price) {
       return res.status(400).json({
         success: false,
-        message: "tenantName and quantity are required",
+        message: "tenantName, quantity, and price are required",
         receivedData: { body: req.body, hasFile: !!req.file }
       });
     }
 
-    const qty = Number(quantity);
+    const qty = parseInt(quantity, 10);
+    const unitPrice = parseFloat(price);
+    
     if (Number.isNaN(qty) || qty < 1) {
       return res.status(400).json({
         success: false,
         message: "quantity must be a positive number",
+      });
+    }
+
+    // Validate minimum 3kg for kiloan package
+    if (packageType === 'kiloan' && qty < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Minimum 3kg untuk paket kiloan",
+      });
+    }
+
+    if (Number.isNaN(unitPrice) || unitPrice < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "price must be a non-negative number",
       });
     }
 
@@ -31,11 +48,16 @@ exports.createLaundry = async (req, res, next) => {
     // Gunakan file dari req.file jika ada, jika tidak gunakan image dari body
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : (image || "");
 
+    // Hitung total harga (quantity * price)
+    const totalPrice = qty * unitPrice;
+
     const laundry = await LaundryItem.create({
       code,
       tenantName,
       packageType: packageType || "kiloan",
       quantity: qty,
+      price: unitPrice,
+      totalPrice,
       notes: notes || "",
       image: imageUrl,
       user: req.user,
@@ -123,8 +145,19 @@ exports.getLaundryById = async (req, res, next) => {
 // UPDATE (admin)
 exports.updateLaundry = async (req, res, next) => {
   try {
-    const { tenantName, packageType, quantity, notes, status, image } =
+    const { tenantName, packageType, quantity, notes, status, image, price } =
       req.body;
+
+    // Debug logging
+    console.log('UPDATE - Received data:', { 
+      tenantName, 
+      packageType, 
+      quantity, 
+      price,
+      status,
+      quantity_type: typeof quantity,
+      price_type: typeof price
+    });
 
     const updateData = {};
 
@@ -140,8 +173,12 @@ exports.updateLaundry = async (req, res, next) => {
       updateData.image = image;
     }
 
+    let qty = null;
+    let unitPrice = null;
+
     if (quantity !== undefined) {
-      const qty = Number(quantity);
+      qty = parseInt(quantity, 10);
+      console.log('UPDATE - Quantity parsing:', { raw: quantity, parsed: qty });
       if (Number.isNaN(qty) || qty < 1) {
         return res.status(400).json({
           success: false,
@@ -150,6 +187,43 @@ exports.updateLaundry = async (req, res, next) => {
       }
       updateData.quantity = qty;
     }
+
+    if (price !== undefined) {
+      unitPrice = parseFloat(price);
+      console.log('UPDATE - Price parsing:', { raw: price, parsed: unitPrice });
+      if (Number.isNaN(unitPrice) || unitPrice < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "price must be a non-negative number",
+        });
+      }
+      updateData.price = unitPrice;
+    }
+
+    // Hitung ulang totalPrice jika quantity atau price berubah
+    const existingLaundry = await LaundryItem.findById(req.params.id);
+    if (!existingLaundry) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Laundry not found" });
+    }
+
+    // Validate minimum 3kg for kiloan package
+    const currentPackageType = packageType || existingLaundry.packageType;
+    const finalQtyForValidation = qty !== null ? qty : existingLaundry.quantity;
+    
+    if (currentPackageType === 'kiloan' && finalQtyForValidation < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Minimum 3kg untuk paket kiloan",
+      });
+    }
+
+    const finalQty = qty !== null ? qty : existingLaundry.quantity;
+    const finalPrice = unitPrice !== null ? unitPrice : (existingLaundry.price || 0);
+    
+    console.log('UPDATE - Final calculation:', { finalQty, finalPrice, total: finalQty * finalPrice });
+    updateData.totalPrice = finalQty * finalPrice;
 
     const laundry = await LaundryItem.findByIdAndUpdate(
       req.params.id,
@@ -239,6 +313,8 @@ exports.trackLaundryByCode = async (req, res, next) => {
         image: laundry.image,
         packageType: laundry.packageType,
         quantity: laundry.quantity,
+        price: laundry.price || 0,
+        totalPrice: laundry.totalPrice || 0,
         notes: laundry.notes,
         createdAt: laundry.createdAt,
         updatedAt: laundry.updatedAt,
